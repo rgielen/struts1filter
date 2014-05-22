@@ -18,6 +18,9 @@
  */
 package de.rgielen.struts1.filter;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -45,6 +48,8 @@ import java.util.regex.Pattern;
  * @author Rene Gielen
  */
 public class ParamWrapperFilter implements Filter {
+
+	private static final Log LOG = LogFactory.getLog(ParamWrapperFilter.class);
 
 	private Pattern pattern;
 
@@ -117,13 +122,19 @@ public class ParamWrapperFilter implements Filter {
 
 		public ServletInputStream getInputStream() throws IOException {
 
-			System.out.println(body);
+			if (LOG.isTraceEnabled()) {
+				LOG.trace(body);
+			}
 			final ByteArrayInputStream byteArrayInputStream;
 			if (pattern.matcher(body).matches()) {
-				System.out.println("matches");
+				if (LOG.isWarnEnabled()) {
+					LOG.warn("[getInputStream]: found body to match blacklisted parameter pattern");
+				}
 				byteArrayInputStream = new ByteArrayInputStream("".getBytes());
 			} else {
-				System.out.println("do not match");
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("[getInputStream]: OK - body does not match blacklisted parameter pattern");
+				}
 				byteArrayInputStream = new ByteArrayInputStream(body.getBytes());
 			}
 			return new ServletInputStream() {
