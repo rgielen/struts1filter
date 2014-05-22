@@ -45,16 +45,27 @@ import java.util.regex.Pattern;
 /**
  * ParamWrapperFilter.
  *
- * @author Rene Gielen
+ * @author Alvaro Munoz, HP Fortify Team
+ * @author Rene Gielen, Apache Struts Team
  */
 public class ParamWrapperFilter implements Filter {
 
 	private static final Log LOG = LogFactory.getLog(ParamWrapperFilter.class);
 
+	private static final String DEFAULT_BLACKLIST_PATTERN = "(.*\\.|^|.*|\\[('|\"))(c|C)lass(\\.|('|\")]|\\[).*";
+	private static final String INIT_PARAM_NAME = "excludeParams";
+
 	private Pattern pattern;
 
 	public void init( FilterConfig filterConfig ) throws ServletException {
-		pattern = Pattern.compile(filterConfig.getInitParameter("excludeParams"), Pattern.DOTALL);
+		final String toCompile;
+		final String initParameter = filterConfig.getInitParameter(INIT_PARAM_NAME);
+		if (initParameter != null && initParameter.trim().length()>0) {
+			toCompile = initParameter;
+		} else {
+			toCompile = DEFAULT_BLACKLIST_PATTERN;
+		}
+		this.pattern = Pattern.compile(toCompile, Pattern.DOTALL);
 	}
 
 	public void doFilter( ServletRequest request, ServletResponse response, FilterChain chain )
@@ -67,22 +78,24 @@ public class ParamWrapperFilter implements Filter {
 
 	static class ParamFilteredRequest extends HttpServletRequestWrapper {
 
+		private static final int BUFFER_SIZE = 128;
+
 		private final String body;
 		private final Pattern pattern;
 
 		public ParamFilteredRequest( ServletRequest request, Pattern pattern ) {
 			super((HttpServletRequest) request);
 			this.pattern = pattern;
+
 			StringBuilder stringBuilder = new StringBuilder();
 			BufferedReader bufferedReader = null;
-
 			try {
 				InputStream inputStream = request.getInputStream();
 
 				if (inputStream != null) {
 					bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
 
-					char[] charBuffer = new char[128];
+					char[] charBuffer = new char[BUFFER_SIZE];
 					int bytesRead = -1;
 
 					while ( (bytesRead = bufferedReader.read(charBuffer)) > 0 ) {
@@ -92,13 +105,13 @@ public class ParamWrapperFilter implements Filter {
 					stringBuilder.append("");
 				}
 			} catch ( IOException ex ) {
-				// Add logger here
+				logCatchedException(ex);
 			} finally {
 				if (bufferedReader != null) {
 					try {
 						bufferedReader.close();
 					} catch ( IOException ex ) {
-						// Add logger here
+						logCatchedException(ex);
 					}
 				}
 			}
@@ -142,6 +155,10 @@ public class ParamWrapperFilter implements Filter {
 					return byteArrayInputStream.read();
 				}
 			};
+		}
+
+		private void logCatchedException( IOException ex ) {
+			LOG.error("[ParamFilteredRequest]: Exception catched: ", ex);
 		}
 
 
