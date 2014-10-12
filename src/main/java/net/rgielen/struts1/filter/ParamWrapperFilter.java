@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package de.rgielen.struts1.filter;
+package net.rgielen.struts1.filter;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
