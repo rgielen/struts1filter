@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package net.rgielen.struts1.filter;
+package de.rgielen.struts1.filter;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -82,6 +82,7 @@ public class ParamWrapperFilter implements Filter {
 
 		private final String body;
 		private final Pattern pattern;
+		private final List requestParameterNames;
 
 		public ParamFilteredRequest( ServletRequest request, Pattern pattern ) {
 			super((HttpServletRequest) request);
@@ -89,6 +90,8 @@ public class ParamWrapperFilter implements Filter {
 
 			StringBuilder stringBuilder = new StringBuilder();
 			BufferedReader bufferedReader = null;
+			requestParameterNames = Collections.list((Enumeration) super.getParameterNames());
+
 			try {
 				InputStream inputStream = request.getInputStream();
 
@@ -120,7 +123,6 @@ public class ParamWrapperFilter implements Filter {
 		}
 
 		public Enumeration getParameterNames() {
-			List requestParameterNames = Collections.list((Enumeration) super.getParameterNames());
 			List finalParameterNames = new ArrayList();
 
 			final Iterator iterator = requestParameterNames.iterator();
