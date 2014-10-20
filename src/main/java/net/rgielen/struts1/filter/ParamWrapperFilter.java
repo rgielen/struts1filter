@@ -124,8 +124,8 @@ public class ParamWrapperFilter implements Filter {
 
 		public Enumeration getParameterNames() {
 			List finalParameterNames = new ArrayList();
-
-			final Iterator iterator = requestParameterNames.iterator();
+			List parameterNames = Collections.list((Enumeration) super.getParameterNames());
+			final Iterator iterator = parameterNames.iterator();
 			while ( iterator.hasNext() ) {
 				String parameterName = (String) iterator.next();
 				if (!pattern.matcher(parameterName).matches()) {
