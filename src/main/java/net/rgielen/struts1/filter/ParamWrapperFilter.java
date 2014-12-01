@@ -83,6 +83,7 @@ public class ParamWrapperFilter implements Filter {
 		private final String body;
 		private final Pattern pattern;
 		private final List requestParameterNames;
+		private boolean read_stream = false;
 
 		public ParamFilteredRequest( ServletRequest request, Pattern pattern ) {
 			super((HttpServletRequest) request);
@@ -136,27 +137,30 @@ public class ParamWrapperFilter implements Filter {
 		}
 
 		public ServletInputStream getInputStream() throws IOException {
+		    if (LOG.isTraceEnabled()) {
+		        LOG.trace(body);
+		    }
+		    final ByteArrayInputStream byteArrayInputStream;
+		    if (pattern.matcher(body).matches()) {
+		        if (LOG.isWarnEnabled()) {
+		            LOG.warn("[getInputStream]: found body to match blacklisted parameter pattern");
+		        }
+		        byteArrayInputStream = new ByteArrayInputStream("".getBytes());
+		    } else if (read_stream) {
+		        byteArrayInputStream = new ByteArrayInputStream("".getBytes());
+		    } else {
+		        if (LOG.isDebugEnabled()) {
+		            LOG.debug("[getInputStream]: OK - body does not match blacklisted parameter pattern");
+		        }
+		        byteArrayInputStream = new ByteArrayInputStream(body.getBytes());
+		        read_stream = true;
+		    }
 
-			if (LOG.isTraceEnabled()) {
-				LOG.trace(body);
-			}
-			final ByteArrayInputStream byteArrayInputStream;
-			if (pattern.matcher(body).matches()) {
-				if (LOG.isWarnEnabled()) {
-					LOG.warn("[getInputStream]: found body to match blacklisted parameter pattern");
-				}
-				byteArrayInputStream = new ByteArrayInputStream("".getBytes());
-			} else {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("[getInputStream]: OK - body does not match blacklisted parameter pattern");
-				}
-				byteArrayInputStream = new ByteArrayInputStream(body.getBytes());
-			}
-			return new ServletInputStream() {
-				public int read() throws IOException {
-					return byteArrayInputStream.read();
-				}
-			};
+		    return new ServletInputStream() {
+		        public int read() throws IOException {
+		            return byteArrayInputStream.read();
+		        }
+		    };
 		}
 
 		private void logCatchedException( IOException ex ) {
