@@ -33,4 +33,14 @@ The filter comes with a default regular expression to match harmful parameter na
 ...
 ```
 
-The filter is still under development but will soon be released to Maven Central.
+The filter is released Maven Central. Use the following Maven dependency declaration to incorporate it in your project
+(Ivy, Gradle and SBT accordingly):
+```
+<dependency>
+    <groupId>net.rgielen</groupId>
+    <artifactId>struts1filter</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+It can also be downloaded directly. Use [the Central Repository Search](http://search.maven.org/) with the coordinates
+provided above to find and download the jar.
