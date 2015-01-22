@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package de.rgielen.struts1.filter;
+package net.rgielen.struts1.filter;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -35,7 +35,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
