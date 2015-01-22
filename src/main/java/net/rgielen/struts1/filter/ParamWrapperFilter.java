@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package net.rgielen.struts1.filter;
+package de.rgielen.struts1.filter;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -35,6 +35,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -50,127 +51,155 @@ import java.util.regex.Pattern;
  */
 public class ParamWrapperFilter implements Filter {
 
-	private static final Log LOG = LogFactory.getLog(ParamWrapperFilter.class);
+    private static final Log LOG = LogFactory.getLog(ParamWrapperFilter.class);
 
-	private static final String DEFAULT_BLACKLIST_PATTERN = "(.*\\.|^|.*|\\[('|\"))(c|C)lass(\\.|('|\")]|\\[).*";
-	private static final String INIT_PARAM_NAME = "excludeParams";
+    private static final String DEFAULT_BLACKLIST_PATTERN = "(.*\\.|^|.*|\\[('|\"))(c|C)lass(\\.|('|\")]|\\[).*";
+    private static final String INIT_PARAM_NAME = "excludeParams";
 
-	private Pattern pattern;
+    private Pattern pattern;
 
-	public void init( FilterConfig filterConfig ) throws ServletException {
-		final String toCompile;
-		final String initParameter = filterConfig.getInitParameter(INIT_PARAM_NAME);
-		if (initParameter != null && initParameter.trim().length()>0) {
-			toCompile = initParameter;
-		} else {
-			toCompile = DEFAULT_BLACKLIST_PATTERN;
-		}
-		this.pattern = Pattern.compile(toCompile, Pattern.DOTALL);
-	}
+    public void init( FilterConfig filterConfig ) throws ServletException {
+        final String toCompile;
+        final String initParameter = filterConfig.getInitParameter(INIT_PARAM_NAME);
+        if (initParameter != null && initParameter.trim().length()>0) {
+            toCompile = initParameter;
+        } else {
+            toCompile = DEFAULT_BLACKLIST_PATTERN;
+        }
+        this.pattern = Pattern.compile(toCompile, Pattern.DOTALL);
+    }
 
-	public void doFilter( ServletRequest request, ServletResponse response, FilterChain chain )
-			throws IOException, ServletException {
-		chain.doFilter(new ParamFilteredRequest(request, pattern), response);
-	}
+    public void doFilter( ServletRequest request, ServletResponse response, FilterChain chain )
+            throws IOException, ServletException {
 
-	public void destroy() {
-	}
+        ParamFilteredRequest wrapper = null;
+        if (request instanceof HttpServletRequest)
+            wrapper = new ParamFilteredRequest(request, pattern);
 
-	static class ParamFilteredRequest extends HttpServletRequestWrapper {
+        if (wrapper != null)
+            chain.doFilter(wrapper,response);
+        else
+            chain.doFilter(request,response);
+    }
 
-		private static final int BUFFER_SIZE = 128;
+    public void destroy() {
+    }
 
-		private final String body;
-		private final Pattern pattern;
-		private final List requestParameterNames;
-		private boolean read_stream = false;
+    static class ParamFilteredRequest extends HttpServletRequestWrapper {
 
-		public ParamFilteredRequest( ServletRequest request, Pattern pattern ) {
-			super((HttpServletRequest) request);
-			this.pattern = pattern;
+        private static final int BUFFER_SIZE = 128;
+        private static final String CONTENT_LENGTH_PATTERN = "(?i)content-length";
 
-			StringBuilder stringBuilder = new StringBuilder();
-			BufferedReader bufferedReader = null;
-			requestParameterNames = Collections.list((Enumeration) super.getParameterNames());
+        private final String body;
+        private final Pattern pattern;
+        private final Pattern content_length_pattern;
+        private boolean read_stream = false;
 
-			try {
-				InputStream inputStream = request.getInputStream();
-
-				if (inputStream != null) {
-					bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-
-					char[] charBuffer = new char[BUFFER_SIZE];
-					int bytesRead = -1;
-
-					while ( (bytesRead = bufferedReader.read(charBuffer)) > 0 ) {
-						stringBuilder.append(charBuffer, 0, bytesRead);
-					}
-				} else {
-					stringBuilder.append("");
-				}
-			} catch ( IOException ex ) {
-				logCatchedException(ex);
-			} finally {
-				if (bufferedReader != null) {
-					try {
-						bufferedReader.close();
-					} catch ( IOException ex ) {
-						logCatchedException(ex);
-					}
-				}
-			}
-			body = stringBuilder.toString();
-
-		}
-
-		/**
-		 * Return a list of parameter names.
-		 * @return the parameter names for this request
-		 */
-		public Enumeration getParameterNames() {
-			List finalParameterNames = new ArrayList();
-			List parameterNames = Collections.list((Enumeration) super.getParameterNames());
-			final Iterator iterator = parameterNames.iterator();
-			while ( iterator.hasNext() ) {
-				String parameterName = (String) iterator.next();
-				if (!pattern.matcher(parameterName).matches()) {
-					finalParameterNames.add(parameterName);
-				}
-			}
-			return Collections.enumeration(finalParameterNames);
-		}
-
-		public ServletInputStream getInputStream() throws IOException {
-		    if (LOG.isTraceEnabled()) {
-		        LOG.trace(body);
-		    }
-		    final ByteArrayInputStream byteArrayInputStream;
-		    if (pattern.matcher(body).matches()) {
-		        if (LOG.isWarnEnabled()) {
-		            LOG.warn("[getInputStream]: found body to match blacklisted parameter pattern");
-		        }
-		        byteArrayInputStream = new ByteArrayInputStream("".getBytes());
-		    } else if (read_stream) {
-		        byteArrayInputStream = new ByteArrayInputStream("".getBytes());
-		    } else {
-		        if (LOG.isDebugEnabled()) {
-		            LOG.debug("[getInputStream]: OK - body does not match blacklisted parameter pattern");
-		        }
-		        byteArrayInputStream = new ByteArrayInputStream(body.getBytes());
-		        read_stream = true;
-		    }
-
-		    return new ServletInputStream() {
-		        public int read() throws IOException {
-		            return byteArrayInputStream.read();
-		        }
-		    };
-		}
-
-		private void logCatchedException( IOException ex ) {
-			LOG.error("[ParamFilteredRequest]: Exception catched: ", ex);
-		}
+        public ParamFilteredRequest( ServletRequest request, Pattern pattern ) {
+            super((HttpServletRequest) request);
+            this.pattern = pattern;
+            this.content_length_pattern = Pattern.compile(CONTENT_LENGTH_PATTERN, Pattern.DOTALL);
 
 
-	}
+            StringBuilder stringBuilder = new StringBuilder();
+            BufferedReader bufferedReader = null;
+
+            try {
+                InputStream inputStream = request.getInputStream();
+
+                if (inputStream != null) {
+                    String characterEncoding = this.getCharacterEncoding();
+                    if (characterEncoding == null ) {
+                        bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                    }
+                    else {
+                        bufferedReader = new BufferedReader(new InputStreamReader(inputStream, characterEncoding));
+                    }
+                    char[] charBuffer = new char[BUFFER_SIZE];
+                    int bytesRead = -1;
+
+                    while ( (bytesRead = bufferedReader.read(charBuffer)) > 0 ) {
+                        stringBuilder.append(charBuffer, 0, bytesRead);
+                    }
+                } else {
+                    stringBuilder.append("");
+                }
+            } catch ( IOException ex ) {
+                logCatchedException(ex);
+            } finally {
+                if (bufferedReader != null) {
+                    try {
+                        bufferedReader.close();
+                    } catch ( IOException ex ) {
+                        logCatchedException(ex);
+                    }
+                }
+            }
+            body = stringBuilder.toString();
+        }
+
+        @Override
+        public Enumeration getParameterNames() {
+            List finalParameterNames = new ArrayList();
+            List parameterNames = Collections.list((Enumeration) super.getParameterNames());
+            final Iterator iterator = parameterNames.iterator();
+            while ( iterator.hasNext() ) {
+                String parameterName = (String) iterator.next();
+                if (!pattern.matcher(parameterName).matches()) {
+                    finalParameterNames.add(parameterName);
+                }
+            }
+            return Collections.enumeration(finalParameterNames);
+        }
+
+        @Override
+        public ServletInputStream getInputStream() throws IOException {
+            if (LOG.isTraceEnabled()) {
+                LOG.trace(body);
+            }
+            final ByteArrayInputStream byteArrayInputStream;
+            if (pattern.matcher(body).matches()) {
+                if (LOG.isWarnEnabled()) {
+                    LOG.warn("[getInputStream]: found body to match blacklisted parameter pattern");
+                }
+                byteArrayInputStream = new ByteArrayInputStream("".getBytes());
+            } else if (read_stream) {
+                byteArrayInputStream = new ByteArrayInputStream("".getBytes());
+            } else {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("[getInputStream]: OK - body does not match blacklisted parameter pattern");
+                }
+                byteArrayInputStream = new ByteArrayInputStream(body.getBytes());
+                read_stream = true;
+            }
+
+            return new ServletInputStream() {
+                public int read() throws IOException {
+                    return byteArrayInputStream.read();
+                }
+            };
+        }
+
+        @Override
+        public String getHeader(String name) {
+            if (pattern.matcher(body).matches() && content_length_pattern.matcher(name).matches()) {
+                return "0";
+            }
+            return super.getHeader(name);
+        }
+
+        @Override
+        public int getContentLength() {
+            if (pattern.matcher(body).matches()) {
+                return 0;
+            }
+            return super.getContentLength();
+        }
+
+        private void logCatchedException( IOException ex ) {
+            LOG.error("[ParamFilteredRequest]: Exception catched: ", ex);
+        }
+
+
+    }
 }
