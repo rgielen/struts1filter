@@ -1,11 +1,10 @@
 struts1filter
 =============
 
-A request parameter filter solution for Struts 1 [CVE-2014-0114](https://issues.apache.org/jira/browse/STR-3220) 
-based on the work of [Alvaro Munoz and the HP Fortify team](http://h30499.www3.hp.com/t5/HP-Security-Research-Blog/Protect-your-Struts1-applications/ba-p/6463188#.VDqkCdTLeT4).
+A request parameter filter solution for [Apache Struts 1](http://struts.apache.org/) [CVE-2014-0114](https://issues.apache.org/jira/browse/STR-3220) based on the work of [Alvaro Munoz and the HP Fortify team](http://h30499.www3.hp.com/t5/HP-Security-Research-Blog/Protect-your-Struts1-applications/ba-p/6463188#.VDqkCdTLeT4).
 
 To use this filter, add the following filter declaration along with appropriate mapping to the web.xml descriptor
-of the Struts 1 application to protect:
+of the Apache Struts 1 application to protect:
 
 ```
 <filter>
